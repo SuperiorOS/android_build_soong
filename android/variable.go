@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strings"
 
+	"superior/soong/android"
+
 	"github.com/google/blueprint/proptools"
 )
 
@@ -124,6 +126,9 @@ type variableProperties struct {
 			Static_libs  []string
 			Srcs         []string
 		}
+
+		// include Superior variables
+		Superior android.Product_variables
 	} `android:"arch_variant"`
 }
 
@@ -287,6 +292,9 @@ type productVariables struct {
 	ProductHiddenAPIStubsTest   []string `json:",omitempty"`
 
 	TargetFSConfigGen []string `json:",omitempty"`
+
+	// include Superior variables
+	Superior android.ProductVariables
 }
 
 func boolPtr(v bool) *bool {

@@ -108,6 +108,7 @@ var archVariants = map[ArchType][]string{
 		"armv7-a",
 		"armv7-a-neon",
 		"armv8-a",
+		"armv8-2a",
 		"cortex-a7",
 		"cortex-a8",
 		"cortex-a9",

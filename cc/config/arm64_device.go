@@ -78,18 +78,6 @@ const (
 )
 
 func init() {
-	android.RegisterArchVariants(android.Arm64,
-		"armv8_a",
-		"armv8_2a",
-		"cortex-a53",
-		"cortex-a55",
-		"cortex-a73",
-		"cortex-a75",
-		"kryo",
-		"kryo300",
-		"exynos-m1",
-		"exynos-m2",
-		"denver64")
 
 	// Clang supports specific Kryo targeting
 	replaceFirst(arm64ClangCpuVariantCflags["kryo"], "-mcpu=cortex-a57", "-mcpu=kryo")

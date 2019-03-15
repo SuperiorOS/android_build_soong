@@ -67,6 +67,8 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_BUILT_MODULE_STEM":       skip,
 	"LOCAL_USE_AAPT2":               skip, // Always enabled in Soong
 	"LOCAL_JAR_EXCLUDE_FILES":       skip, // Soong never excludes files from jars
+	"LOCAL_JACK_ENABLED":            skip, // Obselete
+	"LOCAL_JACK_FLAGS":              skip, // Obselete
 }
 
 // adds a group of properties all having the same type

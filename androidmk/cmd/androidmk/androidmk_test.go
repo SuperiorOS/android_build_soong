@@ -589,6 +589,22 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			}
 		`,
 	},
+	{
+		desc: "blah",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_JACK_ENABLED := incremental
+LOCAL_JACK_FLAGS := --multi-dex native
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+
+}
+		`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {

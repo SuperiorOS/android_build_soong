@@ -29,10 +29,10 @@ var (
 
 	arm64ArchVariantCflags = map[string][]string{
 		"armv8-a": []string{
-			"-march=armv8-a",
+			"-march=armv8-a+simd+crc",
 		},
 		"armv8-2a": []string{
-			"-march=armv8.2a",
+			"-march=armv8.2a+simd+crc",
 		},
 	}
 
@@ -63,8 +63,8 @@ var (
 			"-mcpu=cortex-a57",
 		},
 		"kryo385": []string{
-			// Use cortex-a53 because kryo385 is not supported in GCC/clang.
-			"-mcpu=cortex-a53",
+			// Use cortex-a55 because kryo385 is not supported in GCC/clang.
+			"-mcpu=cortex-a55",
 		},
 		"kryo300": []string{
 			// Use the cortex-a55 as small cluster is based upon it

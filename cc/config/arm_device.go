@@ -60,12 +60,12 @@ var (
 			"-mfpu=neon",
 		},
 		"armv8-a": []string{
-			"-march=armv8-a",
+			"-march=armv8-a+crc",
 			"-mfloat-abi=softfp",
 			"-mfpu=neon-fp-armv8",
 		},
 		"armv8-2a": []string{
-			"-march=armv8.2-a",
+			"-march=armv8.2-a+crc",
 			"-mfloat-abi=softfp",
 			"-mfpu=neon-fp-armv8",
 		},
@@ -151,8 +151,8 @@ var (
 			"-D__ARM_FEATURE_LPAE=1",
 		},
 		"kryo385": []string{
-			// Use cortex-a53 because kryo385 is not supported in GCC/clang.
-			"-mcpu=cortex-a53",
+			// Use cortex-a55 because kryo385 is not supported in GCC/clang.
+			"-mcpu=cortex-a55",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
@@ -173,12 +173,6 @@ func init() {
 	// Krait and Kryo targets are not supported by GCC, but are supported by Clang,
 	// so override the definitions when building modules with Clang.
 	replaceFirst(armClangCpuVariantCflags["krait"], "-mcpu=cortex-a15", "-mcpu=krait")
-
-	// The reason we use "-march=armv8-a+crc", instead of "-march=armv8-a", for
-	// gcc is the latter would conflict with any specified/supported -mcpu!
-	// All armv8-a cores supported by gcc 4.9 support crc, so it's safe
-	// to add +crc. Besides, the use of gcc is only for legacy code.
-	replaceFirst(armArchVariantCflags["armv8-a"], "-march=armv8-a", "-march=armv8-a+crc")
 
 	pctx.StaticVariable("armGccVersion", armGccVersion)
 

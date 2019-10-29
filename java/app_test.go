@@ -15,17 +15,22 @@
 package java
 
 import (
-	"android/soong/android"
-	"android/soong/cc"
-
 	"fmt"
 	"path/filepath"
 	"reflect"
+/*
+	"regexp"
+*/
 	"sort"
 	"strings"
 	"testing"
 
+/*
 	"github.com/google/blueprint/proptools"
+*/
+
+	"android/soong/android"
+	"android/soong/cc"
 )
 
 var (
@@ -1066,6 +1071,7 @@ func TestEmbedNotice(t *testing.T) {
 	}
 }
 
+/*
 func TestUncompressDex(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -1148,3 +1154,310 @@ func TestUncompressDex(t *testing.T) {
 		})
 	}
 }
+*/
+
+func TestAndroidAppImport(t *testing.T) {
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			certificate: "platform",
+			dex_preopt: {
+				enabled: true,
+			},
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	// Check dexpreopt outputs.
+	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+		t.Errorf("can't find dexpreopt outputs")
+	}
+
+	// Check cert signing flag.
+	signedApk := variant.Output("signed/foo.apk")
+	signingFlag := signedApk.Args["certificates"]
+	expected := "build/make/target/product/security/platform.x509.pem build/make/target/product/security/platform.pk8"
+	if expected != signingFlag {
+		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
+	}
+}
+
+func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			certificate: "platform",
+			dex_preopt: {
+				enabled: false,
+			},
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	// Check dexpreopt outputs. They shouldn't exist.
+	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule != nil ||
+		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule != nil {
+		t.Errorf("dexpreopt shouldn't have run.")
+	}
+}
+
+func TestAndroidAppImport_Presigned(t *testing.T) {
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			dex_preopt: {
+				enabled: true,
+			},
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	// Check dexpreopt outputs.
+	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+		t.Errorf("can't find dexpreopt outputs")
+	}
+	// Make sure stripping wasn't done.
+	stripRule := variant.Output("dexpreopt/foo.apk")
+	if !strings.HasPrefix(stripRule.RuleParams.Command, "cp -f") {
+		t.Errorf("unexpected, non-skipping strip command: %q", stripRule.RuleParams.Command)
+	}
+
+	// Make sure signing was skipped and aligning was done instead.
+	if variant.MaybeOutput("signed/foo.apk").Rule != nil {
+		t.Errorf("signing rule shouldn't be included.")
+	}
+	if variant.MaybeOutput("zip-aligned/foo.apk").Rule == nil {
+		t.Errorf("can't find aligning rule")
+	}
+}
+
+func TestAndroidAppImport_DefaultDevCert(t *testing.T) {
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			default_dev_cert: true,
+			dex_preopt: {
+				enabled: true,
+			},
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	// Check dexpreopt outputs.
+	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+		t.Errorf("can't find dexpreopt outputs")
+	}
+
+	// Check cert signing flag.
+	signedApk := variant.Output("signed/foo.apk")
+	signingFlag := signedApk.Args["certificates"]
+	expected := "build/make/target/product/security/testkey.x509.pem build/make/target/product/security/testkey.pk8"
+	if expected != signingFlag {
+		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
+	}
+}
+
+/*
+func TestAndroidAppImport_DpiVariants(t *testing.T) {
+	bp := `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			dpi_variants: {
+				xhdpi: {
+					apk: "prebuilts/apk/app_xhdpi.apk",
+				},
+				xxhdpi: {
+					apk: "prebuilts/apk/app_xxhdpi.apk",
+				},
+			},
+			presigned: true,
+			dex_preopt: {
+				enabled: true,
+			},
+		}
+		`
+	testCases := []struct {
+		name                string
+		aaptPreferredConfig *string
+		aaptPrebuiltDPI     []string
+		expected            string
+	}{
+		{
+			name:                "no preferred",
+			aaptPreferredConfig: nil,
+			aaptPrebuiltDPI:     []string{},
+			expected:            "prebuilts/apk/app.apk",
+		},
+		{
+			name:                "AAPTPreferredConfig matches",
+			aaptPreferredConfig: proptools.StringPtr("xhdpi"),
+			aaptPrebuiltDPI:     []string{"xxhdpi", "ldpi"},
+			expected:            "prebuilts/apk/app_xhdpi.apk",
+		},
+		{
+			name:                "AAPTPrebuiltDPI matches",
+			aaptPreferredConfig: proptools.StringPtr("mdpi"),
+			aaptPrebuiltDPI:     []string{"xxhdpi", "xhdpi"},
+			expected:            "prebuilts/apk/app_xxhdpi.apk",
+		},
+		{
+			name:                "non-first AAPTPrebuiltDPI matches",
+			aaptPreferredConfig: proptools.StringPtr("mdpi"),
+			aaptPrebuiltDPI:     []string{"ldpi", "xhdpi"},
+			expected:            "prebuilts/apk/app_xhdpi.apk",
+		},
+		{
+			name:                "no matches",
+			aaptPreferredConfig: proptools.StringPtr("mdpi"),
+			aaptPrebuiltDPI:     []string{"ldpi", "xxxhdpi"},
+			expected:            "prebuilts/apk/app.apk",
+		},
+	}
+
+	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
+	for _, test := range testCases {
+		config := testConfig(nil)
+		config.TestProductVariables.AAPTPreferredConfig = test.aaptPreferredConfig
+		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
+		ctx := testAppContext(config, bp, nil)
+
+		run(t, ctx, config)
+
+		variant := ctx.ModuleForTests("foo", "android_common")
+		jniRuleCommand := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
+		matches := jniRuleRe.FindStringSubmatch(jniRuleCommand)
+		if len(matches) != 2 {
+			t.Errorf("failed to extract the src apk path from %q", jniRuleCommand)
+		}
+		if test.expected != matches[1] {
+			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, matches[1])
+		}
+	}
+}
+*/
+
+func TestAndroidAppImport_Filename(t *testing.T) {
+	config := testConfig(nil)
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+		}
+
+		android_app_import {
+			name: "bar",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			filename: "bar_sample.apk"
+		}
+		`)
+
+	testCases := []struct {
+		name     string
+		expected string
+	}{
+		{
+			name:     "foo",
+			expected: "foo.apk",
+		},
+		{
+			name:     "bar",
+			expected: "bar_sample.apk",
+		},
+	}
+
+	for _, test := range testCases {
+		variant := ctx.ModuleForTests(test.name, "android_common")
+		if variant.MaybeOutput(test.expected).Rule == nil {
+			t.Errorf("can't find output named %q - all outputs: %v", test.expected, variant.AllOutputs())
+		}
+
+		a := variant.Module().(*AndroidAppImport)
+		expectedValues := []string{test.expected}
+		actualValues := android.AndroidMkEntriesForTest(
+			t, config, "", a).EntryMap["LOCAL_INSTALLED_MODULE_STEM"]
+		if !reflect.DeepEqual(actualValues, expectedValues) {
+			t.Errorf("Incorrect LOCAL_INSTALLED_MODULE_STEM value '%s', expected '%s'",
+				actualValues, expectedValues)
+		}
+	}
+}
+
+/*
+func TestAndroidAppImport_ArchVariants(t *testing.T) {
+	// The test config's target arch is ARM64.
+	testCases := []struct {
+		name     string
+		bp       string
+		expected string
+	}{
+		{
+			name: "matching arch",
+			bp: `
+				android_app_import {
+					name: "foo",
+					apk: "prebuilts/apk/app.apk",
+					arch: {
+						arm64: {
+							apk: "prebuilts/apk/app_arm64.apk",
+						},
+					},
+					presigned: true,
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected: "prebuilts/apk/app_arm64.apk",
+		},
+		{
+			name: "no matching arch",
+			bp: `
+				android_app_import {
+					name: "foo",
+					apk: "prebuilts/apk/app.apk",
+					arch: {
+						arm: {
+							apk: "prebuilts/apk/app_arm.apk",
+						},
+					},
+					presigned: true,
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected: "prebuilts/apk/app.apk",
+		},
+	}
+
+	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
+	for _, test := range testCases {
+		ctx := testJava(t, test.bp)
+
+		variant := ctx.ModuleForTests("foo", "android_common")
+		jniRuleCommand := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
+		matches := jniRuleRe.FindStringSubmatch(jniRuleCommand)
+		if len(matches) != 2 {
+			t.Errorf("failed to extract the src apk path from %q", jniRuleCommand)
+		}
+		if test.expected != matches[1] {
+			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, matches[1])
+		}
+	}
+}
+*/

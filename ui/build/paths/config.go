@@ -76,6 +76,7 @@ func GetConfig(name string) PathConfig {
 var Configuration = map[string]PathConfig{
 	"bash":     Allowed,
 	"bc":       Allowed,
+	"bison":    Log,
 	"bzip2":    Allowed,
 	"curl":	    Allowed,
 	"date":     Allowed,
@@ -85,6 +86,7 @@ var Configuration = map[string]PathConfig{
 	"expr":     Allowed,
 	"find":     Allowed,
 	"flock":    Allowed,
+	"flex":     Log,
 	"fuser":    Allowed,
 	"getopt":   Allowed,
 	"git":      Allowed,

@@ -72,6 +72,7 @@ type androidBaseContext interface {
 	Platform() bool
 	DeviceSpecific() bool
 	SocSpecific() bool
+	VendorOverlay() bool
 	ProductSpecific() bool
 	ProductServicesSpecific() bool
 	AConfig() Config
@@ -239,6 +240,10 @@ type commonProperties struct {
 	// Use `soc_specific` instead for better meaning.
 	Vendor *bool
 
+	// whether this module is specific to an SoC (System-On-a-Chip) and the build is system-only.
+	// When set to true, it is installed into $(TARGET_COPY_OUT_PRODUCT)/vendor_overlay/$(PRODUCT_TARGET_VNDK_VERSION)
+        Vendor_overlay *bool
+
 	// whether this module is specific to an SoC (System-On-a-Chip). When set to true,
 	// it is installed into /vendor (or /system/vendor if vendor partition does not exist).
 	Soc_specific *bool
@@ -356,6 +361,7 @@ const (
 	platformModule moduleKind = iota
 	deviceSpecificModule
 	socSpecificModule
+	vendorOverlayModule
 	productSpecificModule
 	productServicesSpecificModule
 )
@@ -368,6 +374,8 @@ func (k moduleKind) String() string {
 		return "device-specific"
 	case socSpecificModule:
 		return "soc-specific"
+	case vendorOverlayModule:
+		return "vendor-overlay"
 	case productSpecificModule:
 		return "product-specific"
 	case productServicesSpecificModule:
@@ -597,7 +605,7 @@ func (a *ModuleBase) DeviceSupported() bool {
 }
 
 func (a *ModuleBase) Platform() bool {
-	return !a.DeviceSpecific() && !a.SocSpecific() && !a.ProductSpecific() && !a.ProductServicesSpecific()
+	return !a.DeviceSpecific() && !a.SocSpecific() && !a.ProductSpecific() && !a.ProductServicesSpecific() && !a.VendorOverlay()
 }
 
 func (a *ModuleBase) DeviceSpecific() bool {
@@ -606,6 +614,10 @@ func (a *ModuleBase) DeviceSpecific() bool {
 
 func (a *ModuleBase) SocSpecific() bool {
 	return Bool(a.commonProperties.Vendor) || Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Soc_specific)
+}
+
+func (a *ModuleBase) VendorOverlay() bool {
+	return Bool(a.commonProperties.Vendor_overlay)
 }
 
 func (a *ModuleBase) ProductSpecific() bool {
@@ -736,6 +748,7 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 
 func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleKind {
 	var socSpecific = Bool(a.commonProperties.Vendor) || Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Soc_specific)
+	var vendorOverlay = Bool(a.commonProperties.Vendor_overlay)
 	var deviceSpecific = Bool(a.commonProperties.Device_specific)
 	var productSpecific = Bool(a.commonProperties.Product_specific)
 	var productServicesSpecific = Bool(a.commonProperties.Product_services_specific)
@@ -748,6 +761,9 @@ func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 		}
 		if Bool(a.commonProperties.Proprietary) {
 			ctx.PropertyErrorf("proprietary", msg)
+		}
+		if Bool(a.commonProperties.Vendor_overlay) {
+			ctx.PropertyErrorf("vendor_overlay", msg)
 		}
 		if Bool(a.commonProperties.Soc_specific) {
 			ctx.PropertyErrorf("soc_specific", msg)
@@ -774,6 +790,9 @@ func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 			if Bool(a.commonProperties.Proprietary) {
 				ctx.PropertyErrorf("proprietary", msg)
 			}
+			if Bool(a.commonProperties.Vendor_overlay) {
+				ctx.PropertyErrorf("vendor_overlay", msg)
+			}
 			if Bool(a.commonProperties.Soc_specific) {
 				ctx.PropertyErrorf("soc_specific", msg)
 			}
@@ -786,6 +805,8 @@ func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 		return productServicesSpecificModule
 	} else if deviceSpecific {
 		return deviceSpecificModule
+	} else if vendorOverlay {
+		return vendorOverlayModule
 	} else if socSpecific {
 		return socSpecificModule
 	} else {
@@ -1244,6 +1265,10 @@ func (a *androidBaseContextImpl) ProductServicesSpecific() bool {
 	return a.kind == productServicesSpecificModule
 }
 
+func (a *androidBaseContextImpl) VendorOverlay() bool {
+	return a.kind == vendorOverlayModule
+}
+
 // Makes this module a platform module, i.e. not specific to soc, device,
 // product, or product_services.
 func (a *ModuleBase) MakeAsPlatform() {
@@ -1252,6 +1277,7 @@ func (a *ModuleBase) MakeAsPlatform() {
 	a.commonProperties.Soc_specific = boolPtr(false)
 	a.commonProperties.Product_specific = boolPtr(false)
 	a.commonProperties.Product_services_specific = boolPtr(false)
+	a.commonProperties.Vendor_overlay = boolPtr(false)
 }
 
 func (a *androidModuleContext) InstallInData() bool {

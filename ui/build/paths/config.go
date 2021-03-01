@@ -91,6 +91,7 @@ var Configuration = map[string]PathConfig{
 	"bison":          Allowed,
 	"ccache":         Allowed,
 	"cpio":           Allowed,
+	"curl":           Allowed,
 	"date":           Allowed,
 	"depmod":         Allowed,
 	"diff":           Allowed,

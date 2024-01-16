@@ -127,6 +127,7 @@ func installClean(ctx Context, config Config) {
 		productOut("*.img"),
 		productOut("*.json"),
 		productOut("*.zip"),
+		productOut("*.zip.sha256sum"),
 		productOut("android-info.txt"),
 		productOut("misc_info.txt"),
 		productOut("apex"),

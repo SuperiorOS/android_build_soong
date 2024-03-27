@@ -295,3 +295,8 @@ vendor\.lineage\..*
 vendor\.lineage\.health.*
 vendor\.lineage\.livedisplay.*
 vendor\.lineage\.touch.*
+
+# Oplus adds
+com\.oplus\..*
+com\.oplus\.os
+com\.oplus\.os\..*

@@ -520,6 +520,8 @@ type ProductVariables struct {
 	OemProperties []string `json:",omitempty"`
 
 	ArtTargetIncludeDebugBuild *bool `json:",omitempty"`
+
+	SystemPropFiles []string `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {
